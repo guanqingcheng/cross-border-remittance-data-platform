@@ -148,7 +148,8 @@ Insert-only.
 - **`DECIMAL` for money:** `FLOAT` is approximate and can cause reconciliation differences.
 - **Amount and rate snapshots on `Transfer`:** later changes to rates or fee schedules must not alter historical transfers.
 - **UTC timestamps:** the business spans several time zones.
-- **Procedure-enforced rules:** cross-table rules cannot be expressed as `CHECK` constraints, so stored procedures enforce them and data quality tests verify them.
+- **Composite foreign key for recipient ownership:** `Transfer (RecipientId, CustomerId)` references `Recipient (RecipientId, CustomerId)`, so the database rejects a transfer that uses another customer's recipient, even if a stored procedure is bypassed.
+- **Procedure-enforced rules:** other cross-table rules cannot be expressed as `CHECK` constraints, so stored procedures enforce them and data quality tests verify them.
 
 ## Synthetic reference data
 

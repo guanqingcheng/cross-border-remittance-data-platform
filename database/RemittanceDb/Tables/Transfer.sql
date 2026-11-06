@@ -20,7 +20,7 @@ CREATE TABLE dbo.Transfer
     CONSTRAINT PK_Transfer PRIMARY KEY CLUSTERED (TransferId),
     CONSTRAINT UQ_Transfer_ReferenceNumber UNIQUE (ReferenceNumber),
     CONSTRAINT FK_Transfer_Customer FOREIGN KEY (CustomerId) REFERENCES dbo.Customer (CustomerId),
-    CONSTRAINT FK_Transfer_Recipient FOREIGN KEY (RecipientId) REFERENCES dbo.Recipient (RecipientId),
+    CONSTRAINT FK_Transfer_Recipient FOREIGN KEY (RecipientId, CustomerId) REFERENCES dbo.Recipient (RecipientId, CustomerId),
     CONSTRAINT FK_Transfer_Corridor FOREIGN KEY (CorridorId) REFERENCES dbo.Corridor (CorridorId),
     CONSTRAINT FK_Transfer_FeeSchedule FOREIGN KEY (FeeScheduleId) REFERENCES dbo.FeeSchedule (FeeScheduleId),
     CONSTRAINT FK_Transfer_ExchangeRate FOREIGN KEY (ExchangeRateId) REFERENCES dbo.ExchangeRate (ExchangeRateId),

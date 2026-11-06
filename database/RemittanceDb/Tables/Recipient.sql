@@ -10,6 +10,7 @@ CREATE TABLE dbo.Recipient
     UpdatedAt   DATETIME2(3)       NOT NULL CONSTRAINT DF_Recipient_UpdatedAt DEFAULT SYSUTCDATETIME(),
 
     CONSTRAINT PK_Recipient PRIMARY KEY CLUSTERED (RecipientId),
+    CONSTRAINT UQ_Recipient_Id_Customer UNIQUE (RecipientId, CustomerId),
     CONSTRAINT FK_Recipient_Customer FOREIGN KEY (CustomerId) REFERENCES dbo.Customer (CustomerId)
 );
 GO
