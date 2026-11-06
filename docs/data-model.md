@@ -133,15 +133,21 @@ Insert-only.
 8. **Recipient corrections:** recipient names are not edited. A correction deactivates the old row and creates a new one, so historical transfers keep the original recipient.
 9. **Atomic status changes:** stored procedures update `Transfer` and insert the history row in the same transaction.
 10. **History consistency:** `Transfer.Status` must equal the latest `ToStatus`, and each transfer's first history row must be `NULL -> Pending`.
+11. **Customer country:** the customer's country must match the corridor's source country.
+12. **Ordered status changes:** a status change cannot be earlier than the transfer's last update, which keeps the incremental extract watermark reliable.
 
 ## Stored procedures
 
 | Procedure | Purpose |
 | --- | --- |
-| `usp_CreateTransfer` | Validates rules 1-4 and 7, calculates amounts, creates the transfer and its first history row |
-| `usp_UpdateTransferStatus` | Validates rule 5, updates the transfer, inserts a history row |
-| `usp_GetCustomerTransferHistory` | Returns one customer's transfers |
-| `usp_GetDailyCorridorSummary` | Summarizes count, amount, and fees by date and corridor |
+| `usp_CreateTransfer` | Validates rules 1-4, 7, and 11, calculates amounts, creates the transfer and its first history row |
+| `usp_UpdateTransferStatus` | Validates rules 5 and 12, updates the transfer, inserts a history row |
+| `usp_GetCustomerTransferHistory` | Returns one customer's transfers, optionally filtered by date |
+| `usp_GetDailyCorridorSummary` | Summarizes counts for all transfers and amounts for completed transfers, by date and corridor |
+
+`usp_CreateTransfer` takes an optional `@AsOfUtc`, and `usp_UpdateTransferStatus` takes an optional `@ChangedAtUtc`. Both default to the current time. They exist so the data generator can create historical data through the same validation as normal transfers. A production system would use server time only.
+
+Reference numbers such as `RM0000000001` come from the `TransferReferenceSequence` sequence, so seeded data can be reproduced.
 
 ## Design decisions
 
