@@ -1,0 +1,35 @@
+# Secrets: real values live only in a local .env file
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# .NET / SQL project build output (includes generated .dacpac files)
+bin/
+obj/
+*.dacpac
+
+# Generated pipeline data: reproducible from the generator and extract steps
+data/
+*.parquet
+*.duckdb
+*.duckdb.wal
+
+# dbt
+analytics/target/
+analytics/dbt_packages/
+analytics/logs/
+
+# Power BI local cache
+.pbi/
+*.pbix.bak
+
+# Editor and OS
+.vscode/
+Thumbs.db
+*.log
