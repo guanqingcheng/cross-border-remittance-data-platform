@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build dacpac
+        run: dotnet build database/RemittanceDb/RemittanceDb.sqlproj --configuration Release
+
+      - name: Install SqlPackage
+        run: |
+          dotnet tool install --global microsoft.sqlpackage
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      # The container is created fresh for each run, so its password is random and never stored.
+      - name: Generate SQL Server password
+        run: |
+          password="Ci1!$(openssl rand -hex 16)"
+          echo "::add-mask::$password"
+          echo "SA_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      - name: Start SQL Server container
+        run: |
+          docker run --detach --name sqlserver --publish 1433:1433 \
+            --env ACCEPT_EULA=Y \
+            --env MSSQL_PID=Developer \
+            --env MSSQL_SA_PASSWORD="$SA_PASSWORD" \
+            mcr.microsoft.com/mssql/server:2019-latest
+
+      - name: Wait for SQL Server
+        run: |
+          for attempt in $(seq 1 60); do
+            if docker logs sqlserver 2>&1 | grep --quiet "Recovery is complete"; then
+              echo "SQL Server is ready after $attempt checks"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "SQL Server did not become ready"
+          docker logs sqlserver
+          exit 1
+
+      - name: Deploy dacpac
+        run: |
+          sqlpackage /Action:Publish \
+            /SourceFile:database/RemittanceDb/bin/Release/RemittanceDb.dacpac \
+            /TargetServerName:localhost \
+            /TargetDatabaseName:RemittanceDb \
+            /TargetUser:sa \
+            /TargetPassword:"$SA_PASSWORD" \
+            /TargetTrustServerCertificate:True
+
+      - name: Verify tables exist
+        run: |
+          table_count=$(docker exec --env SQLCMDPASSWORD="$SA_PASSWORD" sqlserver \
+            /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -d RemittanceDb -b -h -1 -W \
+            -Q "SET NOCOUNT ON; SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('dbo') AND name <> '__RefactorLog';")
+          echo "Tables found: $table_count"
+          test "$table_count" -eq 8
