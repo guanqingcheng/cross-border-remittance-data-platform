@@ -9,8 +9,8 @@ CREATE TABLE dbo.TransferStatusHistory
 
     CONSTRAINT PK_TransferStatusHistory PRIMARY KEY CLUSTERED (TransferStatusHistoryId),
     CONSTRAINT FK_TransferStatusHistory_Transfer FOREIGN KEY (TransferId) REFERENCES dbo.Transfer (TransferId),
-    CONSTRAINT CK_TransferStatusHistory_FromStatus CHECK (FromStatus IN ('Pending', 'Processing', 'Completed', 'Cancelled', 'Failed')),
-    CONSTRAINT CK_TransferStatusHistory_ToStatus CHECK (ToStatus IN ('Pending', 'Processing', 'Completed', 'Cancelled', 'Failed'))
+    CONSTRAINT CK_TransferStatusHistory_FromStatus CHECK ([FromStatus] = 'Failed' OR [FromStatus] = 'Cancelled' OR [FromStatus] = 'Completed' OR [FromStatus] = 'Processing' OR [FromStatus] = 'Pending'),
+    CONSTRAINT CK_TransferStatusHistory_ToStatus CHECK ([ToStatus] = 'Failed' OR [ToStatus] = 'Cancelled' OR [ToStatus] = 'Completed' OR [ToStatus] = 'Processing' OR [ToStatus] = 'Pending')
 );
 GO
 

@@ -24,9 +24,9 @@ CREATE TABLE dbo.Transfer
     CONSTRAINT FK_Transfer_Corridor FOREIGN KEY (CorridorId) REFERENCES dbo.Corridor (CorridorId),
     CONSTRAINT FK_Transfer_FeeSchedule FOREIGN KEY (FeeScheduleId) REFERENCES dbo.FeeSchedule (FeeScheduleId),
     CONSTRAINT FK_Transfer_ExchangeRate FOREIGN KEY (ExchangeRateId) REFERENCES dbo.ExchangeRate (ExchangeRateId),
-    CONSTRAINT CK_Transfer_PayoutMethod CHECK (PayoutMethod IN ('BankDeposit', 'CashPickup', 'MobileWallet')),
+    CONSTRAINT CK_Transfer_PayoutMethod CHECK ([PayoutMethod] = 'MobileWallet' OR [PayoutMethod] = 'CashPickup' OR [PayoutMethod] = 'BankDeposit'),
     CONSTRAINT CK_Transfer_Amounts CHECK (SendAmount > 0 AND FeeAmount >= 0 AND AppliedRate > 0 AND ReceiveAmount >= 0),
-    CONSTRAINT CK_Transfer_Status CHECK (Status IN ('Pending', 'Processing', 'Completed', 'Cancelled', 'Failed')),
+    CONSTRAINT CK_Transfer_Status CHECK ([Status] = 'Failed' OR [Status] = 'Cancelled' OR [Status] = 'Completed' OR [Status] = 'Processing' OR [Status] = 'Pending'),
     CONSTRAINT CK_Transfer_CompletedAt CHECK ((Status = 'Completed' AND CompletedAt IS NOT NULL) OR (Status <> 'Completed' AND CompletedAt IS NULL))
 );
 GO

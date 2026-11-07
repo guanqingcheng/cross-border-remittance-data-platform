@@ -11,7 +11,7 @@ CREATE TABLE dbo.Customer
 
     CONSTRAINT PK_Customer PRIMARY KEY CLUSTERED (CustomerId),
     CONSTRAINT UQ_Customer_Email UNIQUE (Email),
-    CONSTRAINT CK_Customer_KycStatus CHECK (KycStatus IN ('Pending', 'Verified', 'Rejected'))
+    CONSTRAINT CK_Customer_KycStatus CHECK ([KycStatus] = 'Rejected' OR [KycStatus] = 'Verified' OR [KycStatus] = 'Pending')
 );
 GO
 
