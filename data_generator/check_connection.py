@@ -1,27 +1,11 @@
-"""Check that Python can connect to the local SQL Server database."""
+"""Check that Python can connect to the configured SQL Server database."""
 
-import os
+from db import get_connection
 
-import pyodbc
-from dotenv import load_dotenv
-
-load_dotenv()
-
-server = os.environ["SQL_SERVER"]
-database = os.environ["SQL_DATABASE"]
-driver = os.environ["ODBC_DRIVER"]
-
-connection_string = (
-    f"Driver={{{driver}}};"
-    f"Server={server};"
-    f"Database={database};"
-    "Trusted_Connection=yes;"
-)
-
-connection = pyodbc.connect(connection_string)
+connection = get_connection()
 cursor = connection.cursor()
-cursor.execute("SELECT COUNT(*) FROM dbo.Currency")
-currency_count = cursor.fetchone()[0]
+cursor.execute("SELECT DB_NAME(), COUNT(*) FROM dbo.Currency")
+database_name, currency_count = cursor.fetchone()
 connection.close()
 
-print(f"Connected to {database} on {server}. Currency rows: {currency_count}")
+print(f"Connected to {database_name}. Currency rows: {currency_count}")
