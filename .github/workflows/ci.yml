@@ -11,9 +11,16 @@ permissions:
   contents: read
 
 jobs:
-  build-and-deploy:
+  pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+
+    # Settings read by data_generator/db.py. SQL_PASSWORD is added by a step below.
+    env:
+      SQL_SERVER: localhost
+      SQL_DATABASE: RemittanceDb
+      SQL_USERNAME: sa
+      ODBC_DRIVER: ODBC Driver 18 for SQL Server
 
     steps:
       - name: Check out code
@@ -38,6 +45,7 @@ jobs:
           password="Ci1!$(openssl rand -hex 16)"
           echo "::add-mask::$password"
           echo "SA_PASSWORD=$password" >> "$GITHUB_ENV"
+          echo "SQL_PASSWORD=$password" >> "$GITHUB_ENV"
 
       - name: Start SQL Server container
         run: |
@@ -77,3 +85,54 @@ jobs:
             -Q "SET NOCOUNT ON; SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('dbo') AND name <> '__RefactorLog';")
           echo "Tables found: $table_count"
           test "$table_count" -eq 8
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install ODBC driver if missing
+        run: |
+          if odbcinst -q -d 2>/dev/null | grep --quiet "ODBC Driver 18 for SQL Server"; then
+            echo "ODBC Driver 18 is already installed"
+          else
+            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+            curl -fsSL "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list" | sudo tee /etc/apt/sources.list.d/mssql-release.list
+            sudo apt-get update
+            sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+          fi
+          odbcinst -q -d
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+
+      - name: Seed reference data
+        run: python data_generator/seed_reference_data.py
+
+      # Batch 1 loads the database from empty, so every table is extracted in full.
+      - name: "Batch 1: generate January to September"
+        run: python data_generator/generate_transfers.py --start 2026-01-01 --end 2026-09-30 --count 3000
+
+      - name: "Batch 1: extract to Parquet"
+        run: python -m pipeline.extract
+
+      - name: "Batch 1: dbt build"
+        run: dbt build --project-dir analytics --profiles-dir analytics
+
+      - name: "Batch 1: data quality tests"
+        run: pytest
+
+      # Batch 2 adds new transfers and finishes open ones, so the extract must pick up
+      # only the changed rows and dbt must keep the latest version of each transfer.
+      - name: "Batch 2: generate October 1 to 15"
+        run: python data_generator/generate_transfers.py --start 2026-10-01 --end 2026-10-15 --count 200
+
+      - name: "Batch 2: incremental extract"
+        run: python -m pipeline.extract
+
+      - name: "Batch 2: dbt build"
+        run: dbt build --project-dir analytics --profiles-dir analytics
+
+      - name: "Batch 2: data quality tests"
+        run: pytest
