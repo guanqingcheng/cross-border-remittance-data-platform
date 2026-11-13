@@ -1,0 +1,15 @@
+name: remittance_analytics
+version: "1.0.0"
+config-version: 2
+profile: remittance_analytics
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+models:
+  remittance_analytics:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

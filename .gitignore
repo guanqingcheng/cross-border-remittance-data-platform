@@ -24,6 +24,7 @@ data/
 analytics/target/
 analytics/dbt_packages/
 analytics/logs/
+analytics/.user.yml
 
 # Power BI local cache
 .pbi/

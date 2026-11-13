@@ -1,0 +1,62 @@
+version: 2
+
+models:
+  - name: stg_transfers
+    description: Latest version of each transfer from the raw extract files.
+    columns:
+      - name: transfer_id
+        data_tests: [unique, not_null]
+
+  - name: stg_transfer_status_history
+    description: One row per status change.
+    columns:
+      - name: transfer_status_history_id
+        data_tests: [unique, not_null]
+
+  - name: stg_customers
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+
+  - name: stg_recipients
+    columns:
+      - name: recipient_id
+        data_tests: [unique, not_null]
+
+  - name: dim_customer
+    description: One row per customer, without personal names or emails.
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+
+  - name: dim_corridor
+    description: One row per corridor.
+    columns:
+      - name: corridor_id
+        data_tests: [unique, not_null]
+
+  - name: fct_transfers
+    description: One row per transfer with amounts, currencies, and timing.
+    columns:
+      - name: transfer_id
+        data_tests: [unique, not_null]
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Pending", "Processing", "Completed", "Cancelled", "Failed"]
+      - name: customer_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_id
+      - name: corridor_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_corridor')
+                field: corridor_id
+
+  - name: mart_corridor_daily
+    description: Daily totals per corridor, matching usp_GetDailyCorridorSummary.
