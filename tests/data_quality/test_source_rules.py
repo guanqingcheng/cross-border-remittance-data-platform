@@ -60,16 +60,20 @@ RULE_QUERIES = {
         )
     """,
     "status matches latest history row": """
+        -- OUTER APPLY keeps transfers with no history, and IS NULL flags them,
+        -- because NULL <> value is never true
         SELECT t.TransferId
         FROM dbo.Transfer AS t
-        CROSS APPLY
+        OUTER APPLY
         (
             SELECT TOP (1) h.ToStatus, h.ChangedAt
             FROM dbo.TransferStatusHistory AS h
             WHERE h.TransferId = t.TransferId
             ORDER BY h.TransferStatusHistoryId DESC
         ) AS latest
-        WHERE latest.ToStatus <> t.Status OR latest.ChangedAt <> t.UpdatedAt
+        WHERE latest.ToStatus IS NULL
+            OR latest.ToStatus <> t.Status
+            OR latest.ChangedAt <> t.UpdatedAt
     """,
     "every status change is allowed": """
         SELECT TransferId
