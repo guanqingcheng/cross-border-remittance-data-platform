@@ -139,3 +139,6 @@ jobs:
 
       - name: "Batch 2: data quality tests"
         run: pytest
+
+      - name: Export marts for Power BI
+        run: python -m pipeline.export_marts
