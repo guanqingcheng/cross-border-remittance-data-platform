@@ -1,0 +1,5 @@
+expression DataFolder = "C:\remittance-data\exports" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: 8bcb1d8c-cc71-43fa-9508-0f4f0723b1ee
+
+	annotation PBI_ResultType = Text
+

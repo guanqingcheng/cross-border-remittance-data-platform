@@ -1,0 +1,26 @@
+model Model
+	culture: zh-CN
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: zh-CN
+	valueFilterBehavior: independent
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 1
+
+annotation PBI_QueryOrder = ["DataFolder","fct_transfers","dim_corridor","dim_customer"]
+
+annotation PBI_ProTooling = ["DevMode"]
+
+ref table fct_transfers
+ref table DateTableTemplate_175fcd96-6938-4b91-99b4-bdc71885390e
+ref table LocalDateTable_f9c4749a-afa6-493d-9311-097ca1d86612
+ref table LocalDateTable_6ef29edd-97c9-4c54-883b-30d66eab0dca
+ref table LocalDateTable_ccb7d5fd-25d2-4c80-b1b0-56dc3565cd02
+ref table dim_corridor
+ref table dim_customer
+ref table LocalDateTable_cd3c3de0-25c6-44bd-93bb-5ebd34dad95a
+
+ref cultureInfo zh-CN
+

@@ -1,0 +1,28 @@
+relationship bcaa0fa6-307e-4af3-b363-1869b3512a2f
+	joinOnDateBehavior: datePartOnly
+	fromColumn: fct_transfers.created_at
+	toColumn: LocalDateTable_f9c4749a-afa6-493d-9311-097ca1d86612.Date
+
+relationship 1600ab88-2cd6-4406-a7f0-2cfe17f0ee86
+	joinOnDateBehavior: datePartOnly
+	fromColumn: fct_transfers.created_date
+	toColumn: LocalDateTable_6ef29edd-97c9-4c54-883b-30d66eab0dca.Date
+
+relationship 93811a49-2929-42ee-b5b4-b59d38720b7f
+	joinOnDateBehavior: datePartOnly
+	fromColumn: fct_transfers.completed_at
+	toColumn: LocalDateTable_ccb7d5fd-25d2-4c80-b1b0-56dc3565cd02.Date
+
+relationship AutoDetected_49929a74-8885-432e-b630-ec3cd9f328d1
+	fromColumn: fct_transfers.corridor_id
+	toColumn: dim_corridor.corridor_id
+
+relationship 5a3ba506-9e81-406c-8bca-b86679568f6b
+	joinOnDateBehavior: datePartOnly
+	fromColumn: dim_customer.created_at
+	toColumn: LocalDateTable_cd3c3de0-25c6-44bd-93bb-5ebd34dad95a.Date
+
+relationship AutoDetected_826413fa-28b9-4430-926a-a54fd1300e55
+	fromColumn: fct_transfers.customer_id
+	toColumn: dim_customer.customer_id
+

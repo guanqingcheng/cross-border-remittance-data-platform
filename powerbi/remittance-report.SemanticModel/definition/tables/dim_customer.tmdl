@@ -1,0 +1,52 @@
+table dim_customer
+	lineageTag: d17ba4dd-e723-414a-9fea-56c4d85b6f5f
+
+	column customer_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 6443b2af-c78f-4416-a62e-ad28edef1496
+		summarizeBy: none
+		sourceColumn: customer_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column country_code
+		dataType: string
+		lineageTag: 45aea673-2868-4783-8b2a-9944a80f8fa7
+		summarizeBy: none
+		sourceColumn: country_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column kyc_status
+		dataType: string
+		lineageTag: 984316c8-59ee-42b4-8de3-a947fab1648e
+		summarizeBy: none
+		sourceColumn: kyc_status
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_at
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 218b2547-71d6-4eb8-8dd6-11c196c06a73
+		summarizeBy: none
+		sourceColumn: created_at
+
+		variation Variation
+			isDefault
+			relationship: 5a3ba506-9e81-406c-8bca-b86679568f6b
+			defaultHierarchy: LocalDateTable_cd3c3de0-25c6-44bd-93bb-5ebd34dad95a.日期层次结构
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_customer = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(DataFolder & "\dim_customer.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+

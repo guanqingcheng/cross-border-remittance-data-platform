@@ -1,0 +1,226 @@
+table fct_transfers
+	lineageTag: e86591d8-0a6b-4f9c-ba2b-e022a41bc971
+
+	measure 'Transfer Count' = COUNTROWS(fct_transfers)
+		formatString: #,0
+		lineageTag: 467dab78-7727-4f11-bfc1-5353f16ce438
+
+	measure 'Completed Count' = CALCULATE(COUNTROWS(fct_transfers), fct_transfers[status] = "Completed")
+		formatString: #,0
+		lineageTag: e29d2a8b-f980-458f-b373-fa1af8317b4e
+
+	measure 'Failure Rate' = DIVIDE(CALCULATE(COUNTROWS(fct_transfers), fct_transfers[status] = "Failed"), [Transfer Count])
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: f1eb6f04-0b95-45b4-ab4d-1647b4faa287
+
+	measure 'Avg Minutes to Complete' = AVERAGE(fct_transfers[minutes_to_complete])
+		formatString: 0
+		lineageTag: 9e2035f9-eac0-4397-be4e-542747c09558
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Completed Send Amount' = CALCULATE(SUM(fct_transfers[send_amount]), fct_transfers[status] = "Completed")
+		formatString: #,0
+		lineageTag: 5b6daaac-84d7-4a61-a59f-ed2e5e62df30
+
+	measure 'Failed Count' = CALCULATE(COUNTROWS(fct_transfers), fct_transfers[status] = "Failed")
+		formatString: #,0
+		lineageTag: 5aa5ad76-3639-441c-aa73-ec814a57db33
+
+	column transfer_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 4013389f-81fa-43cd-9823-5174c30802a6
+		summarizeBy: sum
+		sourceColumn: transfer_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column reference_number
+		dataType: string
+		lineageTag: c07dafc1-7e45-47a1-abe9-b6566905eeca
+		summarizeBy: none
+		sourceColumn: reference_number
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 27940a20-1b2f-4a3a-9e89-cc23418521d6
+		summarizeBy: none
+		sourceColumn: customer_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column recipient_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 22991e07-bd48-46aa-a7ee-2558c416fbcb
+		summarizeBy: sum
+		sourceColumn: recipient_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column corridor_id
+		dataType: int64
+		formatString: 0
+		lineageTag: ffc43d3a-6600-4301-85ec-c0949d8273eb
+		summarizeBy: none
+		sourceColumn: corridor_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column payout_method
+		dataType: string
+		lineageTag: cb3a0a48-7aa0-4325-a756-2335c13a1ef9
+		summarizeBy: none
+		sourceColumn: payout_method
+
+		annotation SummarizationSetBy = Automatic
+
+	column status
+		dataType: string
+		lineageTag: 6fe0258c-854e-4144-a90e-5b4b75af6a7c
+		summarizeBy: none
+		sourceColumn: status
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_at
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 7cd61cab-945a-423f-8f35-dfe872791069
+		summarizeBy: none
+		sourceColumn: created_at
+
+		variation Variation
+			isDefault
+			relationship: bcaa0fa6-307e-4af3-b363-1869b3512a2f
+			defaultHierarchy: LocalDateTable_f9c4749a-afa6-493d-9311-097ca1d86612.日期层次结构
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: a74efb5d-bd9f-4ddd-9773-fa71d99881ea
+		summarizeBy: none
+		sourceColumn: created_date
+
+		variation Variation
+			isDefault
+			relationship: 1600ab88-2cd6-4406-a7f0-2cfe17f0ee86
+			defaultHierarchy: LocalDateTable_6ef29edd-97c9-4c54-883b-30d66eab0dca.日期层次结构
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column completed_at
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: fc3b8987-b8c5-44ba-bcd8-f444c4f1f320
+		summarizeBy: none
+		sourceColumn: completed_at
+
+		variation Variation
+			isDefault
+			relationship: 93811a49-2929-42ee-b5b4-b59d38720b7f
+			defaultHierarchy: LocalDateTable_ccb7d5fd-25d2-4c80-b1b0-56dc3565cd02.日期层次结构
+
+		annotation SummarizationSetBy = Automatic
+
+	column minutes_to_complete
+		dataType: int64
+		formatString: 0
+		lineageTag: 42aed55b-288a-4f9d-9400-38f78320202d
+		summarizeBy: sum
+		sourceColumn: minutes_to_complete
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_currency_code
+		dataType: string
+		lineageTag: f0672cc2-febe-445a-812c-a675009e6a1d
+		summarizeBy: none
+		sourceColumn: source_currency_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column send_amount
+		dataType: double
+		lineageTag: 9761b4ff-63ab-4cc3-a978-41b2a70806e5
+		summarizeBy: sum
+		sourceColumn: send_amount
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column fee_amount
+		dataType: double
+		lineageTag: d714c235-8012-47f1-80f9-cba5df523264
+		summarizeBy: sum
+		sourceColumn: fee_amount
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column total_charged
+		dataType: double
+		lineageTag: b6f5b1c8-3e12-47ec-b204-6c9becd59905
+		summarizeBy: sum
+		sourceColumn: total_charged
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column applied_rate
+		dataType: double
+		lineageTag: 6d5d6202-b1d9-4b4a-9216-677450dc4c57
+		summarizeBy: sum
+		sourceColumn: applied_rate
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column destination_currency_code
+		dataType: string
+		lineageTag: f51902bd-40e7-4315-b64d-4733c5076c8d
+		summarizeBy: none
+		sourceColumn: destination_currency_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column receive_amount
+		dataType: double
+		lineageTag: 6881b28d-b327-4a86-8c58-a716651482bf
+		summarizeBy: sum
+		sourceColumn: receive_amount
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column failure_reason
+		dataType: string
+		lineageTag: a70b38ba-8456-4129-9a1b-0b53507740d0
+		summarizeBy: none
+		sourceColumn: failure_reason
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fct_transfers = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(DataFolder & "\fct_transfers.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+

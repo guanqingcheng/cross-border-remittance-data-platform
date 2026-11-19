@@ -1,0 +1,81 @@
+table dim_corridor
+	lineageTag: 391d1aa3-be2f-4b18-8826-77a28154d58a
+
+	column corridor_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 26e6ae67-142c-4a90-95e2-25e122bec384
+		summarizeBy: none
+		sourceColumn: corridor_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column corridor_name
+		dataType: string
+		lineageTag: 879811a9-866d-49a7-b960-5769c07c8bec
+		summarizeBy: none
+		sourceColumn: corridor_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_country_code
+		dataType: string
+		lineageTag: a0d4630e-3728-4a07-9a52-a925f0597043
+		summarizeBy: none
+		sourceColumn: source_country_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column destination_country_code
+		dataType: string
+		lineageTag: b030bef1-91ae-406d-92db-6c16084e27f2
+		summarizeBy: none
+		sourceColumn: destination_country_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_currency_code
+		dataType: string
+		lineageTag: a70f1bfb-bab7-4dfa-9e6b-872f0f63251f
+		summarizeBy: none
+		sourceColumn: source_currency_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column destination_currency_code
+		dataType: string
+		lineageTag: 3485a739-6d15-44c6-9a0b-432c7fe080d5
+		summarizeBy: none
+		sourceColumn: destination_currency_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column max_send_amount
+		dataType: double
+		lineageTag: 333f464c-6957-4c19-af99-a2216268293f
+		summarizeBy: none
+		sourceColumn: max_send_amount
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column is_active
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: b165fa6d-2d96-4319-b769-061f6be5fa67
+		summarizeBy: none
+		sourceColumn: is_active
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_corridor = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(DataFolder & "\dim_corridor.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+

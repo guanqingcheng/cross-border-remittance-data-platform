@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "remittance-report"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "eba8eb77-b344-4c6e-a84b-da0a49f128c7"
+  }
+}

@@ -34,3 +34,6 @@ analytics/.user.yml
 .vscode/
 Thumbs.db
 *.log
+
+# Old single-file report; the .pbip project is the source of truth
+powerbi/*.pbix
