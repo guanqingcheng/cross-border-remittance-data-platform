@@ -11,6 +11,45 @@ permissions:
   contents: read
 
 jobs:
+  # Claude reviews the SQL files changed by this push or pull request.
+  # The step fails closed: if the review cannot run, the check fails.
+  sql-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # full history, so git diff can compare with the base commit
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+
+      - name: AI review of changed SQL files
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.base_ref }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            base="origin/$PR_BASE_REF"
+          elif [ "$EVENT_NAME" = "push" ] && [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            base="$PUSH_BEFORE"
+          else
+            echo "No base commit to compare with, so nothing to review."
+            exit 0
+          fi
+          echo "Comparing with $base"
+          python -m sql_review.review_sql --base "$base"
+
   pipeline:
     runs-on: ubuntu-latest
     timeout-minutes: 30
