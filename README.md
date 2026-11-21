@@ -4,7 +4,7 @@
 
 A portfolio project that simulates the data platform of a cross-border money transfer business, from the transactional SQL Server database to a Power BI report. All data is synthetic, and no table, rule, or value comes from a real company.
 
-> **Status:** Phase 1 (data engineering) is complete. Phase 2 (AI engineering) is planned.
+> **Status:** Phase 1 (data engineering) is complete. Phase 2 (AI engineering) is in progress: the AI SQL review is done, the data Q&A agent is next.
 
 ![Power BI overview report](docs/images/powerbi-overview.webp)
 
@@ -56,6 +56,7 @@ flowchart LR
   3. pytest checks the source rules directly in SQL Server and reconciles the warehouse against the source, including a stored procedure summary.
 - **Tests that are proven to fail.** Key checks were broken on purpose to confirm they catch the problem. For example, keeping the oldest instead of the newest version of a transfer passes every dbt test, but the reconciliation test fails with 10 transfers in the wrong status.
 - **CI from an empty server.** Every push builds the dacpac, starts a SQL Server container, loads two batches of data, and runs the extract, dbt, and pytest after each batch. The second batch exists to exercise the incremental path.
+- **AI review of SQL changes.** Claude Haiku 5.5 checks every changed SQL file against seven rules and answers in a fixed JSON schema. The check fails closed, and a deliberately bad procedure was blocked three runs in a row. See [AI SQL review](#ai-sql-review).
 - **Report in version control.** The Power BI report is saved as a Power BI project (`.pbip`), so its layout and DAX measures are text files that can be reviewed in a pull request. The data folder is a parameter, not a hard-coded path.
 
 ## CI pipeline
@@ -73,6 +74,49 @@ If any step fails, the run fails and the later steps are skipped.
 
 ![CI pipeline run](docs/images/ci-pipeline.png)
 
+A second job, `sql-review`, runs in parallel and is described in the next section.
+
+## AI SQL review
+
+Every push and pull request runs the `sql-review` job. It finds the SQL files under `database/` that changed since the base commit and sends them to Claude Haiku 5.5 with the rules in [`sql_review/rules.md`](sql_review/rules.md):
+
+| Rule | Severity | What it catches |
+| --- | --- | --- |
+| R1 | error | A function around a column in `WHERE` or `JOIN ... ON`, which prevents an index seek |
+| R2 | error | Dynamic SQL built by string concatenation |
+| R3 | error | A data change without `SET XACT_ABORT ON` and `TRY/CATCH` rollback |
+| R4 | error | `NOLOCK` or `READ UNCOMMITTED` |
+| R5 | warning | `SELECT *` |
+| R6 | error | `UPDATE` or `DELETE` without `WHERE` |
+| R7 | warning | Catch-all `(@p IS NULL OR col = @p)` predicate without `OPTION (RECOMPILE)` |
+
+How the gate works ([`sql_review/review_sql.py`](sql_review/review_sql.py)):
+
+- **Structured output.** The request sets a JSON schema, so the answer is a verdict, a summary, and a list of findings with file, line, rule, and severity.
+- **Checked twice.** The script validates the answer again in code, then decides from the findings: any error finding fails the check, whatever the model's own verdict says.
+- **Fails closed.** A missing API key, an API error, a refusal, a cut-off answer, or invalid JSON fails the check instead of passing it.
+- **Prompt injection guard.** File contents are wrapped in tags, and the rules tell the model to treat them as data and to report any text that tries to change the verdict. This guard is not yet covered by a test.
+- **Cost visible.** Each run logs the model, token counts, and an estimated cost. A typical review of one procedure costs about $0.0004.
+
+**Demo.** [Pull request #1](https://github.com/guanqingcheng/cross-border-remittance-data-platform/pull/1) adds a procedure that filters with `ISNULL(t.UpdatedAt, t.CreatedAt) >= @Since`. The `pipeline` job passes, because the procedure is valid T-SQL, but the `sql-review` job failed in all three attempts of [the run](https://github.com/guanqingcheng/cross-border-remittance-data-platform/actions/runs/44702461872) with:
+
+```text
+ERROR   R1 database/RemittanceDb/StoredProcedures/usp_GetTransfersUpdatedSince.sql:13  Non-SARGable predicate: ISNULL(t.UpdatedAt, t.CreatedAt) wraps columns in the WHERE clause, so an index on UpdatedAt or CreatedAt cannot be used for a seek.
+model=claude-haiku-5-5 input_tokens=1766 output_tokens=336 est_cost_usd=0.00034
+Verdict: FAIL
+```
+
+The fixed version, with the bare column `t.UpdatedAt >= @Since`, passes. Both versions are in [`sql_review/examples/`](sql_review/examples/). The 13 existing SQL files in the database project pass with no findings.
+
+Run it locally (needs `ANTHROPIC_API_KEY` in `.env`):
+
+```powershell
+python -m sql_review.review_sql sql_review/examples/usp_GetTransfersUpdatedSince_bad.sql
+python -m sql_review.review_sql --base origin/main
+```
+
+Pull requests from forks do not receive repository secrets, so the review fails closed on them.
+
 ## Tech stack
 
 | Area | Tools |
@@ -84,6 +128,7 @@ If any step fails, the run fails and the later steps are skipped.
 | Data quality | dbt tests, pytest |
 | CI | GitHub Actions, SQL Server Linux container |
 | Reporting | Power BI Desktop (Power BI project format, DAX) |
+| AI review | Claude Haiku 5.5 via the Anthropic Python SDK, structured outputs |
 
 ## Repository layout
 
@@ -96,6 +141,7 @@ If any step fails, the run fails and the later steps are skipped.
 | `analytics/` | dbt project: staging views and mart tables |
 | `tests/data_quality/` | Source rule checks and warehouse reconciliation |
 | `powerbi/` | Power BI project |
+| `sql_review/` | AI SQL review: rules, script, and good and bad examples |
 | `.github/workflows/` | CI pipeline |
 | `docs/` | Data model, business rules, images |
 
@@ -171,10 +217,10 @@ Amounts stay in their source currency (USD, GBP, or EUR), so the report never ad
 
 Secrets never go into git: connection settings live in `.env`, which is ignored, and CI generates a random SQL Server password for each run.
 
-## Phase 2: AI engineering (planned)
+## Phase 2: AI engineering
 
-- **AI SQL review in CI:** changed SQL files are reviewed by Claude, which returns a JSON verdict. The check fails closed, and a deliberately bad stored procedure (for example `ISNULL` around a column in a `WHERE` clause) must be blocked.
-- **Data Q&A agent:** answers English questions about the data through a read-only database login, measured against an evaluation set of about 30 questions.
+- **AI SQL review in CI:** done, see [AI SQL review](#ai-sql-review).
+- **Data Q&A agent (next):** answers English questions about the data through a read-only database login, measured against an evaluation set of about 30 questions.
 
 ---
 
