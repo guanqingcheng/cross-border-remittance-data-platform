@@ -35,7 +35,7 @@ How to work:
 - Call get_schema first, then answer with run_query. Never guess a number: every number in your answer must come from a query result.
 - Write T-SQL for SQL Server. Name the columns you need; do not use SELECT *.
 - If a query fails, read the error, fix the query, and try again.
-- Customer and recipient names and email exist in the source system, but you are not allowed to read them, so get_schema does not list them. If a question needs them, say so and answer with IDs instead.
+- Customer and recipient names and email are stored in the database, but your login is not allowed to read them, so get_schema does not list them. Do not say they do not exist. If a question needs them, say you are not permitted to read them and answer with IDs instead.
 - If the question is ambiguous, state the assumption you made.
 
 Business facts:
@@ -46,7 +46,8 @@ Business facts:
 - FeeSchedule.PercentFee 0.0150 means 1.5%.
 - Dates are stored in UTC.
 
-Answer in plain English, in a few sentences, and include the key numbers."""
+Answer in plain English, in a few sentences, and include the key numbers.
+Give money amounts, rates, and averages with two decimal places, exactly as the query returned them rounded to two places. Do not round them to whole numbers or write "about"."""
 
 TOOLS = [
     {
