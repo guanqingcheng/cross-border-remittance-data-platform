@@ -4,7 +4,7 @@
 
 A portfolio project that simulates the data platform of a cross-border money transfer business, from the transactional SQL Server database to a Power BI report. All data is synthetic, and no table, rule, or value comes from a real company.
 
-> **Status:** Phase 1 (data engineering) is complete. Phase 2 (AI engineering) is in progress: the AI SQL review is done, the data Q&A agent is next.
+> **Status:** Phase 1 (data engineering) and Phase 2 (AI engineering) are complete: an AI SQL review in CI, and a data Q&A agent measured against a 30-question evaluation set.
 
 ![Power BI overview report](docs/images/powerbi-overview.webp)
 
@@ -57,6 +57,7 @@ flowchart LR
 - **Tests that are proven to fail.** Key checks were broken on purpose to confirm they catch the problem. For example, keeping the oldest instead of the newest version of a transfer passes every dbt test, but the reconciliation test fails with 10 transfers in the wrong status.
 - **CI from an empty server.** Every push builds the dacpac, starts a SQL Server container, loads two batches of data, and runs the extract, dbt, and pytest after each batch. The second batch exists to exercise the incremental path.
 - **AI review of SQL changes.** Claude Haiku 5.5 checks every changed SQL file against seven rules and answers in a fixed JSON schema. The check fails closed, and a deliberately bad procedure was blocked three runs in a row. See [AI SQL review](#ai-sql-review).
+- **A data Q&A agent with a measured accuracy.** Claude answers English questions by writing SQL through a read-only login that cannot see personal columns. A 30-question evaluation set, graded in code against reference SQL, scores 30/30 for about $0.02 a run. See [Data Q&A agent](#data-qa-agent).
 - **Report in version control.** The Power BI report is saved as a Power BI project (`.pbip`), so its layout and DAX measures are text files that can be reviewed in a pull request. The data folder is a parameter, not a hard-coded path.
 
 ## CI pipeline
@@ -117,6 +118,91 @@ python -m sql_review.review_sql --base origin/main
 
 Pull requests from forks do not receive repository secrets, so the review fails closed on them.
 
+## Data Q&A agent
+
+[`qa_agent/agent.py`](qa_agent/agent.py) answers English questions about the data. Claude Haiku 5.5 runs in a loop with two tools:
+
+- `get_schema` lists the tables and columns the agent is allowed to read.
+- `run_query` runs one `SELECT` statement and returns up to 200 rows.
+
+The loop sends the conversation to the model, runs any tool calls, and appends the results, until the model answers or 8 turns have passed. A query error goes back to the model as a tool result, so it can fix the query and try again.
+
+### Safety does not depend on the model
+
+| Layer | What it enforces |
+| --- | --- |
+| SQL Server login `qa_reader` ([`setup_readonly_login.py`](qa_agent/setup_readonly_login.py)) | `SELECT` granted table by table from an allow-list, so a new table stays hidden until it is reviewed. Customer and recipient names and email denied at column level. `INSERT`, `UPDATE`, `DELETE`, `EXECUTE`, and `ALTER` denied explicitly, so a later grant to `public` cannot add them. |
+| Code checks in `run_query` | One statement, starting with `SELECT` or `WITH`, no write keywords, at most 200 rows, 10 second query timeout. |
+| Agent loop | At most 8 model turns. Any stop reason other than an answer or a tool call is an error. |
+| Schema tool | Lists only the columns the login can read, using `HAS_PERMS_BY_NAME`, because `INFORMATION_SCHEMA` also lists denied columns. |
+
+The database login is the real boundary. The code checks give the model clear error messages, and the prompt keeps it from trying in the first place. All three were tested: as `qa_reader`, a new table, `SELECT Email`, `SELECT *` on `Customer`, `DELETE`, and `DROP TABLE` are refused, and a 32-billion-row cross join is stopped after 10 seconds.
+
+### Example
+
+From the latest evaluation run. The question hides a trap, because completed transfers are in three currencies:
+
+```text
+Q: What is the total send amount of all completed transfers?
+
+SELECT c.SourceCurrencyCode, COUNT(*) AS CompletedTransfers, SUM(t.SendAmount) AS TotalSendAmount
+FROM dbo.Transfer t JOIN dbo.Corridor c ON c.CorridorId = t.CorridorId
+WHERE t.Status = 'Completed' GROUP BY c.SourceCurrencyCode ORDER BY c.SourceCurrencyCode
+
+A: The completed transfers total 82497.15 EUR (225 transfers), 90703.21 GBP (251 transfers),
+   and 871289.47 USD (2,318 transfers). I didn't add these together because they are in
+   different currencies. ...
+
+turns=3 input_tokens=4834 output_tokens=379 (about $0.0007)
+```
+
+### Evaluation
+
+[`qa_agent/eval/questions.json`](qa_agent/eval/questions.json) holds 30 questions, each with reference SQL:
+
+| Category | Questions | What it tests |
+| --- | --- | --- |
+| simple | 6 | Counts and top values on one table |
+| time | 6 | Date ranges, months, weekends, durations |
+| join | 6 | Corridors, countries, customers, recipients |
+| currency | 4 | Totals and averages that must stay per currency |
+| status | 4 | Status history, failure reasons, rates; one needs the history table joined to itself |
+| rate | 1 | Exchange rate averages |
+| privacy | 3 | Requests for names or email, which must be declined |
+
+[`qa_agent/run_eval.py`](qa_agent/run_eval.py) grades in code, not with another model:
+
+- The reference SQL runs at evaluation time, so the expected answers stay correct if the data is regenerated. Every value in its result must appear in the answer: numbers within a tolerance of 0.01 unless the question sets its own, text ignoring case and spaces.
+- Some questions also list words the answer must contain, such as the corridor's country. Short codes like `IN` must match in capitals, so the word "in" does not count.
+- Privacy questions pass only if the answer declines and contains no email address.
+- [`qa_agent/eval/last_run.json`](qa_agent/eval/last_run.json) keeps every answer, every query, and token counts from the latest run, so a change in an expected value shows up in the git diff.
+
+Results:
+
+| Run | Accuracy | Cost | Notes |
+| --- | --- | --- | --- |
+| 1 | 29/30 | $0.021 | currency-03 had the right SQL, but the answer rounded the averages to whole numbers. |
+| 2 | 30/30 | $0.021 | After the prompt asked for two decimal places. |
+| 3 | 30/30 | $0.021 | Recorded in `last_run.json`. |
+
+All three runs are graded with the final grader. Two findings came from reading the answers, not the score:
+
+- An early draft of the grader rejected a correct "GB to IN" because it only accepted "India". The grader is code too and needed fixing.
+- Three draft questions were rewritten after checking their assumptions against the data. For example, "completed in March" gives 273 by completion date and 274 by creation date, so the question now names the date. A question whose answer equalled the total number of failed transfers could be passed without using the history table, so it was replaced.
+
+Known limits: a number that appears in the answer by coincidence counts as found, and an answer that rounds correctly but differently from the reference fails. The set is small, and the model's answers vary between runs, so the score is a regression check, not a guarantee.
+
+Run it locally. This needs mixed-mode authentication on SQL Server, `QA_READER_PASSWORD` and `ANTHROPIC_API_KEY` in `.env`, and the data from the steps under [Run it locally](#run-it-locally):
+
+```powershell
+python -m qa_agent.setup_readonly_login
+python -m qa_agent.agent "How many transfers failed in each corridor?"
+python -m qa_agent.run_eval --dry-run
+python -m qa_agent.run_eval
+```
+
+`--dry-run` prints the expected answers without calling the API. The evaluation does not run in CI, because each run costs money and CI would also need the read-only login in its container.
+
 ## Tech stack
 
 | Area | Tools |
@@ -129,6 +215,7 @@ Pull requests from forks do not receive repository secrets, so the review fails 
 | CI | GitHub Actions, SQL Server Linux container |
 | Reporting | Power BI Desktop (Power BI project format, DAX) |
 | AI review | Claude Haiku 5.5 via the Anthropic Python SDK, structured outputs |
+| Q&A agent | Claude Haiku 5.5 with tool use, a least-privilege SQL login, code-graded evaluation |
 
 ## Repository layout
 
@@ -142,6 +229,7 @@ Pull requests from forks do not receive repository secrets, so the review fails 
 | `tests/data_quality/` | Source rule checks and warehouse reconciliation |
 | `powerbi/` | Power BI project |
 | `sql_review/` | AI SQL review: rules, script, and good and bad examples |
+| `qa_agent/` | Data Q&A agent, read-only login setup, evaluation set and runner |
 | `.github/workflows/` | CI pipeline |
 | `docs/` | Data model, business rules, images |
 
@@ -220,7 +308,7 @@ Secrets never go into git: connection settings live in `.env`, which is ignored,
 ## Phase 2: AI engineering
 
 - **AI SQL review in CI:** done, see [AI SQL review](#ai-sql-review).
-- **Data Q&A agent (next):** answers English questions about the data through a read-only database login, measured against an evaluation set of about 30 questions.
+- **Data Q&A agent:** done, see [Data Q&A agent](#data-qa-agent).
 
 ---
 
