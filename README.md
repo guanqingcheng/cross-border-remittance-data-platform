@@ -303,7 +303,10 @@ Amounts stay in their source currency (USD, GBP, or EUR), so the report never ad
    cmd /c mklink /J C:\remittance-data "<repo path>\data"
    ```
 
-Secrets never go into git: connection settings live in `.env`, which is ignored, and CI generates a random SQL Server password for each run.
+Secrets never go into git:
+
+- Locally, connection settings, the `qa_reader` password, and the Claude API key live in `.env`, which is ignored. `.env.example` lists the same settings with the passwords and key left empty.
+- In CI, the Claude API key is a GitHub Actions repository secret (`ANTHROPIC_API_KEY`), passed only to the `sql-review` step, and the SQL Server container gets a random password generated for each run.
 
 ## Phase 2: AI engineering
 
