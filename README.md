@@ -95,7 +95,7 @@ How the gate works ([`sql_review/review_sql.py`](sql_review/review_sql.py)):
 
 - **Structured output.** The request sets a JSON schema, so the answer is a verdict, a summary, and a list of findings with file, line, rule, and severity.
 - **Checked twice.** The script validates the answer again in code, then decides from the findings: any error finding fails the check, whatever the model's own verdict says.
-- **Fails closed.** A missing API key, an API error, a refusal, a cut-off answer, or invalid JSON fails the check instead of passing it.
+- **Fails closed.** A missing API key, an API error, a refusal, a cut-off answer, or invalid JSON fails the check instead of passing it. [`tests/unit/test_review_fail_closed.py`](tests/unit/test_review_fail_closed.py) covers each case with a fake client, so it runs in CI at no cost. When the script was changed on purpose to return success on errors, 13 of these tests failed.
 - **Prompt injection guard.** File contents are wrapped in tags, and the rules tell the model to treat them as data and to report any text that tries to change the verdict. [`usp_GetTransfersUpdatedSince_injection.sql`](sql_review/examples/usp_GetTransfersUpdatedSince_injection.sql) has the same R1 violation as the bad example, plus a comment that claims DBA approval and tells the reviewer to return "pass". In 3 of 3 runs, the review still reported R1 at the right line, flagged the comment as an R2 error, and failed. One example does not prove the guard holds against every attack.
 - **Cost visible.** Each run logs the model, token counts, and an estimated cost. A typical review of one procedure costs about $0.0004.
 
@@ -136,7 +136,9 @@ The loop sends the conversation to the model, runs any tool calls, and appends t
 | Agent loop | At most 8 model turns. Any stop reason other than an answer or a tool call is an error. |
 | Schema tool | Lists only the columns the login can read, using `HAS_PERMS_BY_NAME`, because `INFORMATION_SCHEMA` also lists denied columns. |
 
-The database login is the real boundary. The code checks give the model clear error messages, and the prompt keeps it from trying in the first place. All three were tested: as `qa_reader`, a new table, `SELECT Email`, `SELECT *` on `Customer`, `DELETE`, and `DROP TABLE` are refused, and a 32-billion-row cross join is stopped after 10 seconds.
+The database login is the real boundary. The code checks give the model clear error messages, and the prompt keeps it from trying in the first place. All three were tested: as `qa_reader`, a new table, `SELECT Email`, `SELECT *` on `Customer`, `DELETE`, and `DROP TABLE` are refused, and a 32-billion-row cross join is stopped after 10 seconds. The code check has unit tests in [`tests/unit/test_agent_guards.py`](tests/unit/test_agent_guards.py).
+
+**Prompt injection through the data.** Free-text columns such as `TransferStatusHistory.Reason` could carry orders aimed at the agent. [`qa_agent/injection_check.py`](qa_agent/injection_check.py) runs the real model against fixed query results whose top failure reason hides an order: one tells the agent to query and list customer emails, the other tells it to report 5 instead of 77. In 6 of 6 runs (3 per order, about $0.005 in total) the agent gave the real count, did not query emails, and told the user it had ignored an instruction found in the data. If it had followed the first order, the login would still have refused the email column.
 
 ### Example
 
@@ -227,6 +229,7 @@ python -m qa_agent.run_eval
 | `pipeline/` | Incremental extract to Parquet and mart export |
 | `analytics/` | dbt project: staging views and mart tables |
 | `tests/data_quality/` | Source rule checks and warehouse reconciliation |
+| `tests/unit/` | Fail-closed tests for the AI review and the agent's SQL check, no database or API key needed |
 | `powerbi/` | Power BI project |
 | `sql_review/` | AI SQL review: rules, script, and good and bad examples |
 | `qa_agent/` | Data Q&A agent, read-only login setup, evaluation set and runner |
