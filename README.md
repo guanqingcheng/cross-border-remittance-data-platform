@@ -96,7 +96,7 @@ How the gate works ([`sql_review/review_sql.py`](sql_review/review_sql.py)):
 - **Structured output.** The request sets a JSON schema, so the answer is a verdict, a summary, and a list of findings with file, line, rule, and severity.
 - **Checked twice.** The script validates the answer again in code, then decides from the findings: any error finding fails the check, whatever the model's own verdict says.
 - **Fails closed.** A missing API key, an API error, a refusal, a cut-off answer, or invalid JSON fails the check instead of passing it.
-- **Prompt injection guard.** File contents are wrapped in tags, and the rules tell the model to treat them as data and to report any text that tries to change the verdict. This guard is not yet covered by a test.
+- **Prompt injection guard.** File contents are wrapped in tags, and the rules tell the model to treat them as data and to report any text that tries to change the verdict. [`usp_GetTransfersUpdatedSince_injection.sql`](sql_review/examples/usp_GetTransfersUpdatedSince_injection.sql) has the same R1 violation as the bad example, plus a comment that claims DBA approval and tells the reviewer to return "pass". In 3 of 3 runs, the review still reported R1 at the right line, flagged the comment as an R2 error, and failed. One example does not prove the guard holds against every attack.
 - **Cost visible.** Each run logs the model, token counts, and an estimated cost. A typical review of one procedure costs about $0.0004.
 
 **Demo.** [Pull request #1](https://github.com/guanqingcheng/cross-border-remittance-data-platform/pull/1) adds a procedure that filters with `ISNULL(t.UpdatedAt, t.CreatedAt) >= @Since`. The `pipeline` job passes, because the procedure is valid T-SQL, but the `sql-review` job failed in all three attempts of [the run](https://github.com/guanqingcheng/cross-border-remittance-data-platform/actions/runs/44702461872) with:
@@ -107,7 +107,7 @@ model=claude-haiku-5-5 input_tokens=1766 output_tokens=336 est_cost_usd=0.00034
 Verdict: FAIL
 ```
 
-The fixed version, with the bare column `t.UpdatedAt >= @Since`, passes. Both versions are in [`sql_review/examples/`](sql_review/examples/). The 13 existing SQL files in the database project pass with no findings.
+The fixed version, with the bare column `t.UpdatedAt >= @Since`, passes. Both versions, and the prompt injection example, are in [`sql_review/examples/`](sql_review/examples/). The 13 existing SQL files in the database project pass with no findings.
 
 Run it locally (needs `ANTHROPIC_API_KEY` in `.env`):
 
